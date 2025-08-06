@@ -7,14 +7,25 @@ log_message() {
   logger -t startup-script "$message"
 }
 
+# Function to time operations
+time_operation() {
+  local start_time=$(date +%s)
+  "$@"
+  local status=$?
+  local end_time=$(date +%s)
+  local duration=$((end_time - start_time))
+  log_message "Operation took $duration seconds: $1"
+  return $status
+}
+
 log_message "Starting server setup..."
 
 # Update and install dependencies
 log_message "Updating package lists..."
-apt-get update
+time_operation apt-get update
 
 log_message "Installing required packages..."
-apt-get install -y python3-pip git nginx
+time_operation apt-get install -y python3-pip git nginx
 if [ $? -eq 0 ]; then
   log_message "Successfully installed required packages"
 else
@@ -24,8 +35,7 @@ fi
 
 # Install monitoring agent
 log_message "Installing Google Cloud Ops agent..."
-curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
-bash add-google-cloud-ops-agent-repo.sh --also-install
+time_operation bash -c 'curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh && bash add-google-cloud-ops-agent-repo.sh --also-install'
 
 # Create application directory
 log_message "Creating application directory..."
@@ -46,7 +56,7 @@ APPEOF
 # Install Python dependencies
 cd /app
 log_message "Installing Python dependencies..."
-pip3 install -r requirements.txt
+time_operation pip3 install -r requirements.txt
 if [ $? -eq 0 ]; then
   log_message "Successfully installed Python dependencies"
 else
@@ -94,7 +104,7 @@ ln -s /etc/nginx/sites-available/fastapi /etc/nginx/sites-enabled/
 rm /etc/nginx/sites-enabled/default
 
 log_message "Restarting nginx..."
-systemctl restart nginx
+time_operation systemctl restart nginx
 if [ $? -eq 0 ]; then
   log_message "Successfully restarted nginx"
 else
@@ -105,7 +115,7 @@ fi
 # Start the FastAPI service
 log_message "Starting FastAPI service..."
 systemctl enable fastapi
-systemctl start fastapi
+time_operation systemctl start fastapi
 if [ $? -eq 0 ]; then
   log_message "Successfully started FastAPI service"
 else
