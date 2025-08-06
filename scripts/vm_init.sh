@@ -50,6 +50,22 @@ if [ "${deployment_mode}" = "github_public" ]; then
         exit 1
     fi
     APP_DIR="/app/repo"
+elif [ "${deployment_mode}" = "github_private" ]; then
+    log_message "Setting up SSH for private GitHub repository..."
+    # Setup SSH
+    mkdir -p /root/.ssh
+    chmod 700 /root/.ssh
+    echo "${github_ssh_key}" > /root/.ssh/id_rsa
+    chmod 600 /root/.ssh/id_rsa
+    # Add GitHub to known hosts
+    ssh-keyscan github.com >> /root/.ssh/known_hosts
+    
+    log_message "Cloning private GitHub repository..."
+    if ! git clone --branch "${github_branch}" "${github_repo_url}" /app/repo; then
+        log_message "Error: Failed to clone repository"
+        exit 1
+    fi
+    APP_DIR="/app/repo"
 else
     log_message "Setting up local test server..."
     mkdir -p /app/repo

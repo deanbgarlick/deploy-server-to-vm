@@ -113,6 +113,7 @@ resource "google_compute_instance" "fastapi_instance" {
     deployment_mode = var.deployment_mode
     github_repo_url = var.github_repo_url
     github_branch = var.github_branch
+    github_ssh_key = var.deployment_mode == "github_private" ? file("${path.module}/secrets/github_deploy_key") : ""
     setup_script_content = var.deployment_mode == "local_test" ? file("${path.module}/test-server/setup.sh") : ""
     run_script_content = var.deployment_mode == "local_test" ? file("${path.module}/test-server/run.sh") : ""
     requirements_content = var.deployment_mode == "local_test" ? file("${path.module}/test-server/requirements.txt") : ""

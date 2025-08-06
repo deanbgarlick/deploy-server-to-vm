@@ -34,25 +34,32 @@ variable "disk_image" {
 }
 
 variable "deployment_mode" {
-  description = "Either 'local_test' or 'github_public'"
+  description = "Either 'local_test', 'github_public', or 'github_private'"
   type        = string
   default     = "local_test"
   validation {
-    condition     = contains(["local_test", "github_public"], var.deployment_mode)
-    error_message = "deployment_mode must be either 'local_test' or 'github_public'"
+    condition     = contains(["local_test", "github_public", "github_private"], var.deployment_mode)
+    error_message = "deployment_mode must be either 'local_test', 'github_public', or 'github_private'"
   }
 }
 
 variable "github_repo_url" {
-  description = "Public GitHub repository URL (only used when deployment_mode = 'github_public')"
+  description = "GitHub repository URL (SSH format for private repos)"
   type        = string
   default     = ""
 }
 
 variable "github_branch" {
-  description = "GitHub branch to deploy (only used when deployment_mode = 'github_public')"
+  description = "GitHub branch to deploy"
   type        = string
   default     = "main"
+}
+
+variable "github_ssh_key" {
+  description = "SSH private key for GitHub authentication (only used when deployment_mode = 'github_private')"
+  type        = string
+  default     = ""
+  sensitive   = true
 }
 
 variable "allowed_ip_ranges" {
