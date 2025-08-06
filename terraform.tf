@@ -110,8 +110,13 @@ resource "google_compute_instance" "fastapi_instance" {
   }
 
   metadata_startup_script = templatefile("${path.module}/scripts/vm_init.sh", {
-    requirements_content = file("${path.module}/requirements.txt")
-    app_content = file("${path.module}/server/app.py")
+    deployment_mode = var.deployment_mode
+    github_repo_url = var.github_repo_url
+    github_branch = var.github_branch
+    setup_script_content = var.deployment_mode == "local_test" ? file("${path.module}/test-server/setup.sh") : ""
+    run_script_content = var.deployment_mode == "local_test" ? file("${path.module}/test-server/run.sh") : ""
+    requirements_content = var.deployment_mode == "local_test" ? file("${path.module}/test-server/requirements.txt") : ""
+    app_content = var.deployment_mode == "local_test" ? file("${path.module}/test-server/app.py") : ""
   })
 
   # Allow stopping/starting the instance

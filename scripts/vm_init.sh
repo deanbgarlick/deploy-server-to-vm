@@ -42,26 +42,47 @@ log_message "Creating application directory..."
 mkdir -p /app
 cd /app
 
-# Copy application files from startup script
-log_message "Setting up application files..."
-cat <<'APPEOF' > /app/requirements.txt
+# Deploy based on mode
+if [ "${deployment_mode}" = "github_public" ]; then
+    log_message "Cloning public GitHub repository..."
+    if ! git clone --branch "${github_branch}" "${github_repo_url}" /app/repo; then
+        log_message "Error: Failed to clone repository"
+        exit 1
+    fi
+    APP_DIR="/app/repo"
+else
+    log_message "Setting up local test server..."
+    mkdir -p /app/repo
+    # Copy our test server files
+    cat <<'APPEOF' > /app/repo/setup.sh
+${setup_script_content}
+APPEOF
+
+    cat <<'APPEOF' > /app/repo/run.sh
+${run_script_content}
+APPEOF
+
+    cat <<'APPEOF' > /app/repo/requirements.txt
 ${requirements_content}
 APPEOF
 
-mkdir -p /app/server
-cat <<'APPEOF' > /app/server/app.py
+    mkdir -p /app/repo/server
+    cat <<'APPEOF' > /app/repo/server/app.py
 ${app_content}
 APPEOF
+    APP_DIR="/app/repo"
+fi
 
-# Install Python dependencies
-cd /app
-log_message "Installing Python dependencies..."
-time_operation pip3 install -r requirements.txt
-if [ $? -eq 0 ]; then
-  log_message "Successfully installed Python dependencies"
-else
-  log_message "Error: Failed to install Python dependencies"
-  exit 1
+# Make scripts executable
+log_message "Making scripts executable..."
+chmod +x $APP_DIR/setup.sh $APP_DIR/run.sh
+
+# Run setup script
+log_message "Running setup script..."
+cd $APP_DIR
+if ! ./setup.sh; then
+    log_message "Error: Setup script failed"
+    exit 1
 fi
 
 # Create systemd service
@@ -73,8 +94,8 @@ After=network.target
 
 [Service]
 User=root
-WorkingDirectory=/app
-ExecStart=/usr/local/bin/uvicorn server.app:app --host 0.0.0.0 --port 8000
+WorkingDirectory=$APP_DIR
+ExecStart=$APP_DIR/run.sh
 Restart=always
 StandardOutput=journal
 StandardError=journal
@@ -83,44 +104,15 @@ StandardError=journal
 WantedBy=multi-user.target
 EOT
 
-# Configure nginx
-log_message "Configuring nginx..."
-cat <<EOT > /etc/nginx/sites-available/fastapi
-server {
-    listen 80;
-    server_name _;
-
-    location / {
-        proxy_pass http://localhost:8000;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-}
-EOT
-
-ln -s /etc/nginx/sites-available/fastapi /etc/nginx/sites-enabled/
-rm /etc/nginx/sites-enabled/default
-
-log_message "Restarting nginx..."
-time_operation systemctl restart nginx
-if [ $? -eq 0 ]; then
-  log_message "Successfully restarted nginx"
-else
-  log_message "Error: Failed to restart nginx"
-  exit 1
-fi
-
-# Start the FastAPI service
+# Start the service
 log_message "Starting FastAPI service..."
 systemctl enable fastapi
 time_operation systemctl start fastapi
 if [ $? -eq 0 ]; then
-  log_message "Successfully started FastAPI service"
+    log_message "Successfully started FastAPI service"
 else
-  log_message "Error: Failed to start FastAPI service"
-  exit 1
+    log_message "Error: Failed to start FastAPI service"
+    exit 1
 fi
 
 log_message "Server setup completed successfully!" 
