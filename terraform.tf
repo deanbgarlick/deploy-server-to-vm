@@ -82,7 +82,7 @@ resource "google_compute_firewall" "allow_ssh" {
 # Create a compute instance
 resource "google_compute_instance" "fastapi_instance" {
   name         = "fastapi-server"
-  machine_type = "e2-micro"
+  machine_type = var.machine_type
   tags         = ["fastapi-server"]
 
   # Use the VM service account
@@ -97,8 +97,8 @@ resource "google_compute_instance" "fastapi_instance" {
 
   boot_disk {
     initialize_params {
-      image = "ubuntu-os-cloud/ubuntu-2204-lts"
-      size  = 10
+      image = var.disk_image
+      size  = var.disk_size
     }
   }
 

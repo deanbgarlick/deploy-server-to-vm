@@ -15,6 +15,24 @@ variable "zone" {
   default     = "us-central1-a"
 }
 
+variable "machine_type" {
+  description = "The machine type to use for the VM (e.g., e2-micro, e2-medium)"
+  type        = string
+  default     = "e2-medium"
+}
+
+variable "disk_size" {
+  description = "Size of the boot disk in GB"
+  type        = number
+  default     = 10
+}
+
+variable "disk_image" {
+  description = "The disk image to use for the boot disk"
+  type        = string
+  default     = "ubuntu-minimal-2204-lts"
+}
+
 variable "allowed_ip_ranges" {
   description = "List of IP ranges that can access the FastAPI server (CIDR notation)"
   type        = list(string)
