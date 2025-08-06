@@ -8,4 +8,4 @@ disk_size = 10
 disk_image = "ubuntu-minimal-2204-lts"
 deployment_mode = "local_test"
 github_repo_url = ""
-github_branch = "main" 
+github_branch = "main"
