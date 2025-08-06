@@ -138,3 +138,9 @@ output "vm_service_account_email" {
   value = google_service_account.vm_service_account.email
   description = "Email address of the VM runtime service account"
 }
+
+# Output zone
+output "zone" {
+  value = var.zone
+  description = "The zone where resources are deployed"
+}
