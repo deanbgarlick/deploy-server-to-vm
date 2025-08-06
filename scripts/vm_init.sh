@@ -18,19 +18,41 @@ time_operation() {
   return $status
 }
 
+# Function to retry a command
+retry_command() {
+    local max_attempts=5
+    local delay=15
+    local attempt=1
+    local command="$@"
+    
+    while [ $attempt -le $max_attempts ]; do
+        log_message "Attempt $attempt of $max_attempts: $1"
+        if eval "$command"; then
+            return 0
+        fi
+        log_message "Command failed. Waiting $delay seconds before retrying..."
+        sleep $delay
+        attempt=$((attempt + 1))
+        delay=$((delay * 2))
+    done
+    
+    log_message "Error: Command failed after $max_attempts attempts"
+    return 1
+}
+
 log_message "Starting server setup..."
 
-# Update and install dependencies
+# Update and install dependencies with retry
 log_message "Updating package lists..."
-time_operation apt-get update
+if ! retry_command "apt-get update"; then
+    log_message "Error: Failed to update package lists after multiple attempts"
+    exit 1
+fi
 
 log_message "Installing required packages..."
-time_operation apt-get install -y python3-pip git nginx
-if [ $? -eq 0 ]; then
-  log_message "Successfully installed required packages"
-else
-  log_message "Error: Failed to install required packages"
-  exit 1
+if ! retry_command "apt-get install -y python3-pip git nginx"; then
+    log_message "Error: Failed to install required packages after multiple attempts"
+    exit 1
 fi
 
 # Install monitoring agent
@@ -52,13 +74,30 @@ if [ "${deployment_mode}" = "github_public" ]; then
     APP_DIR="/app/repo"
 elif [ "${deployment_mode}" = "github_private" ]; then
     log_message "Setting up SSH for private GitHub repository..."
-    # Setup SSH
+    # Setup SSH for GitHub only
     mkdir -p /root/.ssh
     chmod 700 /root/.ssh
-    echo "${github_ssh_key}" > /root/.ssh/id_rsa
-    chmod 600 /root/.ssh/id_rsa
-    # Add GitHub to known hosts
-    ssh-keyscan github.com >> /root/.ssh/known_hosts
+    
+    # Create a GitHub-specific SSH config
+    cat <<EOT > /root/.ssh/config
+Host github.com
+    HostName github.com
+    IdentityFile /root/.ssh/github_deploy_key
+    IdentitiesOnly yes
+EOT
+    chmod 600 /root/.ssh/config
+    
+    # Save the key with a specific name
+    echo "${github_ssh_key}" > /root/.ssh/github_deploy_key
+    chmod 600 /root/.ssh/github_deploy_key
+    
+    # Add only GitHub to known hosts
+    ssh-keyscan github.com > /root/.ssh/known_hosts
+    chmod 600 /root/.ssh/known_hosts
+    
+    # Configure Git to use HTTPS for everything except GitHub
+    git config --global url."https://".insteadOf git://
+    git config --global url."git@github.com:".insteadOf "https://github.com/"
     
     log_message "Cloning private GitHub repository..."
     if ! git clone --branch "${github_branch}" "${github_repo_url}" /app/repo; then
